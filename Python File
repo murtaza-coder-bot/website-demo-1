@@ -1,0 +1,191 @@
+import pygame
+import random
+import math
+import sys
+
+pygame.init()
+
+WIDTH, HEIGHT = 1000, 700
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Zombie Shooter")
+
+clock = pygame.time.Clock()
+
+WHITE = (255,255,255)
+BLACK = (0,0,0)
+GREEN = (0,200,0)
+RED = (220,50,50)
+YELLOW = (255,255,0)
+BLUE = (50,150,255)
+
+font = pygame.font.SysFont(None, 30)
+
+player = pygame.Rect(WIDTH//2-20, HEIGHT//2-20, 40, 40)
+
+player_speed = 6
+health = 100
+score = 0
+
+bullets = []
+zombies = []
+
+spawn_timer = 0
+
+running = True
+
+while running:
+
+    dt = clock.tick(60)
+
+    for event in pygame.event.get():
+
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+
+            mx,my = pygame.mouse.get_pos()
+
+            angle = math.atan2(my-player.centery,
+                               mx-player.centerx)
+
+            bullets.append({
+                "x":player.centerx,
+                "y":player.centery,
+                "dx":math.cos(angle)*12,
+                "dy":math.sin(angle)*12
+            })
+
+    keys = pygame.key.get_pressed()
+
+    if keys[pygame.K_w]:
+        player.y -= player_speed
+    if keys[pygame.K_s]:
+        player.y += player_speed
+    if keys[pygame.K_a]:
+        player.x -= player_speed
+    if keys[pygame.K_d]:
+        player.x += player_speed
+
+    player.clamp_ip(screen.get_rect())
+
+    spawn_timer += dt
+
+    if spawn_timer > 1000:
+        spawn_timer = 0
+
+        side = random.randint(0,3)
+
+        if side == 0:
+            x = random.randint(0,WIDTH)
+            y = -40
+        elif side == 1:
+            x = WIDTH+40
+            y = random.randint(0,HEIGHT)
+        elif side == 2:
+            x = random.randint(0,WIDTH)
+            y = HEIGHT+40
+        else:
+            x = -40
+            y = random.randint(0,HEIGHT)
+
+        zombies.append({
+            "x":x,
+            "y":y,
+            "speed":2
+        })
+
+    for bullet in bullets[:]:
+
+        bullet["x"] += bullet["dx"]
+        bullet["y"] += bullet["dy"]
+
+        if (bullet["x"] < 0 or bullet["x"] > WIDTH or
+            bullet["y"] < 0 or bullet["y"] > HEIGHT):
+            bullets.remove(bullet)
+
+    for zombie in zombies[:]:
+
+        angle = math.atan2(
+            player.centery-zombie["y"],
+            player.centerx-zombie["x"]
+        )
+
+        zombie["x"] += math.cos(angle)*zombie["speed"]
+        zombie["y"] += math.sin(angle)*zombie["speed"]
+
+        zombie_rect = pygame.Rect(
+            zombie["x"]-20,
+            zombie["y"]-20,
+            40,
+            40
+        )
+
+        if zombie_rect.colliderect(player):
+            health -= 0.2
+
+        for bullet in bullets[:]:
+
+            bullet_rect = pygame.Rect(
+                bullet["x"]-3,
+                bullet["y"]-3,
+                6,
+                6
+            )
+
+            if zombie_rect.colliderect(bullet_rect):
+
+                zombies.remove(zombie)
+                bullets.remove(bullet)
+                score += 1
+                break
+
+    if health <= 0:
+        running = False
+
+    screen.fill((35,35,35))
+
+    pygame.draw.rect(screen, BLUE, player)
+
+    for bullet in bullets:
+        pygame.draw.circle(
+            screen,
+            YELLOW,
+            (int(bullet["x"]),int(bullet["y"])),
+            4
+        )
+
+    for zombie in zombies:
+        pygame.draw.circle(
+            screen,
+            GREEN,
+            (int(zombie["x"]),int(zombie["y"])),
+            20
+        )
+
+    health_text = font.render(
+        f"Health: {int(health)}",True,WHITE)
+
+    score_text = font.render(
+        f"Score: {score}",True,WHITE)
+
+    screen.blit(health_text,(10,10))
+    screen.blit(score_text,(10,40))
+
+    pygame.display.flip()
+
+game_over = font.render(
+    f"GAME OVER! Final Score: {score}",
+    True,
+    RED
+)
+
+screen.fill(BLACK)
+screen.blit(game_over,
+            (WIDTH//2-150,HEIGHT//2))
+pygame.display.flip()
+
+pygame.time.wait(3000)
+
+pygame.quit()
